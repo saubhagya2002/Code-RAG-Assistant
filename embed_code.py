@@ -1,27 +1,20 @@
-import chromadb, os
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.document_loaders import DirectoryLoader, TextLoader
+from dotenv import load_dotenv
+import os
 
-chroma = chromadb.PersistentClient(path="./code_db")
+load_dotenv()
 
-try:
-    collection = chroma.get_collection("codebase")
-except:
-    collection = chroma.create_collection("codebase")
+# Load code files
+loader = DirectoryLoader("./code_files", glob="**/*.py", loader_cls=TextLoader)
+docs = loader.load()
 
-# Folder that contains your project code
-code_folder = "./my_code"
+# Create embeddings
+embeddings = OpenAIEmbeddings()
 
-for root, dirs, files in os.walk(code_folder):
-    for file in files:
-        if file.endswith(".py"):
-            file_path = os.path.join(root, file)
+# Store in ChromaDB
+db = Chroma.from_documents(documents=docs, embedding=embeddings, persist_directory="./chroma_db")
+db.persist()
 
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            collection.add(
-                documents=[content],
-                metadatas=[{"file": file_path}],
-                ids=[file_path]
-            )
-
-print("✅ Code successfully embedded in ChromaDB")
+print("✅ Code indexed successfully with LangChain!")
